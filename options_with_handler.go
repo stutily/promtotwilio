@@ -91,9 +91,9 @@ func sendMessage(o *options, status string, alert []byte) {
 		body = findAndReplaceLables(body, alert)
 		startsAt, _ := jsonparser.GetString(alert, "startsAt")
 		parsedStartsAt, err := time.Parse(time.RFC3339, startsAt)
-		if err == nil && status == 'resolved'{
+        if err == nil && status == "resolved" {
             body = "✅ \"" + body + "\"" + " alert at " + parsedStartsAt.Format(time.RFC1123)
-		} else if { err == nil && status == 'firing') {
+		} else if err == nil && status == "firing" {
             body = "❌ \"" + body + "\"" + " alert at " + parsedStartsAt.Format(time.RFC1123)
         }
 
