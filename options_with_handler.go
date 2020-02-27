@@ -66,9 +66,9 @@ func (m OptionsWithHandler) sendRequest(ctx *fasthttp.RequestCtx) {
 				return
 			}
 
-			if status == "firing" {
+			if status == "firing" || status == "resolved" {
 				_, err := jsonparser.ArrayEach(body, func(alert []byte, dataType jsonparser.ValueType, offset int, err error) {
-					go sendMessage(sendOptions, alert)
+					go sendMessage(sendOptions, status, alert)
 				}, "alerts")
 				if err != nil {
 					log.Warnf("Error parsing json: %v", err)
@@ -78,16 +78,21 @@ func (m OptionsWithHandler) sendRequest(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func sendMessage(o *options, alert []byte) {
+func sendMessage(o *options, status string, alert []byte) {
 	c := twilio.NewClient(o.AccountSid, o.AuthToken)
-	body, _ := jsonparser.GetString(alert, "annotations", "summary")
+
+    body, _ := jsonparser.GetString(alert, "annotations", "summary")
+
+    if body == "" {
+        body, _ = jsonparser.GetString(alert, "annotations", "message")
+    }
 
 	if body != "" {
 		body = findAndReplaceLables(body, alert)
 		startsAt, _ := jsonparser.GetString(alert, "startsAt")
 		parsedStartsAt, err := time.Parse(time.RFC3339, startsAt)
 		if err == nil {
-			body = "\"" + body + "\"" + " alert starts at " + parsedStartsAt.Format(time.RFC1123)
+            body = status + ": \"" + body + "\"" + " alert at " + parsedStartsAt.Format(time.RFC1123)
 		}
 
 		message, err := twilio.NewMessage(c, o.Sender, o.Receiver, twilio.Body(body))
@@ -97,7 +102,7 @@ func sendMessage(o *options, alert []byte) {
 			log.Infof("Message %s", message.Status)
 		}
 	} else {
-		log.Error("Bad format")
+		log.Error("Bad format - could not summary or message in annotations")
 	}
 }
 
